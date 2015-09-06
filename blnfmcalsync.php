@@ -3,7 +3,7 @@
 Plugin Name: BLN.FM Cal Sync
 Description: 
 Author: Nico Knoll
-Version: 1.7
+Version: 1.6
 Author URI: http://nico.is
 */
 
@@ -121,7 +121,7 @@ function addEvent($data) {
 
 function addEvents() {
 	$spreadsheet = spreadsheetToArray();
-	if($spreadsheet)
+	if($spreadsheet) {
 		foreach(spreadsheetToArray() as $event) {
 			// reload locations as we dynamically create them if missing
 			$locations = getLocationIDs();
