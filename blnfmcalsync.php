@@ -83,43 +83,63 @@ function getLocationIDs() {
 	return $return;
 }
 
+function getPostIdByMetaValue($key, $value) {
+	global $wpdb;
+	$meta = $wpdb->get_results("SELECT * FROM `".$wpdb->postmeta."` WHERE meta_key='".esc_sql($key)."' AND meta_value='".esc_sql($value)."'");
+	
+	if (is_array($meta) && !empty($meta) && isset($meta[0])) {
+		$meta = $meta[0];
+		}	
+	
+	if (is_object($meta)) {
+		return $meta->post_id;
+	} else {
+		return false;
+	}
+}
 
-function addEvent($data) {
-	$em_event = new EM_Event();
 
-	$em_event->event_start_date = $data["starttag"];
-	$em_event->event_start_time = $data["startzeit"];
-	$em_event->event_end_date = $data["endtag"];
-	$em_event->event_end_time = $data["endzeit"];
+function updateEvent($data) {
+	$em_event = em_get_event(getPostIdByMetaValue('_ss_id', $data['id']), 'post_id');
+	$check = true;
 
-	$em_event->start = strtotime($em_event->event_start_date." ".$em_event->event_start_time);
-	$em_event->end = strtotime($em_event->event_end_date." ".$em_event->event_end_time);
+	if($data['status'] == 'ACTIVE') {
+		if(!($em_event->event_id)) $em_event = new EM_Event();
 
-	$em_event->location_id = $data["locationid"];
+		$em_event->event_start_date = $data["starttag"];
+		$em_event->event_start_time = $data["startzeit"];
+		$em_event->event_end_date = $data["endtag"];
+		$em_event->event_end_time = $data["endzeit"];
 
-	$em_event->post_title = $data["titel"];
-	$em_event->event_name = $data["titel"];
+		$em_event->start = strtotime($em_event->event_start_date." ".$em_event->event_start_time);
+		$em_event->end = strtotime($em_event->event_end_date." ".$em_event->event_end_time);
 
-	$em_event->body = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
-	$em_event->post_content = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
-	$em_event->post_tags = $data[""];
+		$em_event->location_id = $data["locationid"];
 
-	// meta
-	$em_event->group_id = 0;
-	$em_event->event_date_modified = date('Y-m-d H:i:s', time());
-	$em_event->event_all_day = 0;
-	$em_event->event_rsvp = 0;
+		$em_event->post_title = $data["titel"];
+		$em_event->event_name = $data["titel"];
 
-	$check = $em_event->save();
+		$em_event->body = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
+		$em_event->post_content = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
+		$em_event->post_tags = @$data["tags"];
 
-	wp_update_post(array('ID' => $em_event->post_id));
+		// meta
+		$em_event->group_id = 0;
+		$em_event->event_date_modified = date('Y-m-d H:i:s', time());
+		$em_event->event_all_day = 0;
+		$em_event->event_rsvp = 0;
 
-	var_dump($em_event->post_id);
+		$check = $em_event->save();
+
+		add_post_meta($em_event->post_id, '_ss_id', $data['id']);
+	} else {
+		if($em_event->event_id) $check = $em_event->delete(true);
+	}
 
 	return $check;
 }
 
-function addEvents() {
+function updateEvents() {
 	$spreadsheet = spreadsheetToArray();
 	if($spreadsheet) {
 		foreach(spreadsheetToArray() as $event) {
@@ -129,7 +149,7 @@ function addEvents() {
 			$event['locationid'] = @$locations[$event['venue']];
 			if($event['locationid'] == '') $event['locationid'] = addLocation($event['venue']);
 
-			addEvent($event);
+			updateEvent($event);
 		}
 	}
 }
@@ -143,11 +163,10 @@ function blnfmcalsync_page_function() {
 
 		update_option( 'blnfmcalsync-lastsync', time() );
 
-		addEvents();
+		updateEvents();
 	}
 
 	$lastSynced = get_option( 'blnfmcalsync-lastsync' );
-
 
 	echo '<div class="wrap">
 	<h1>Mit Google Spreadsheet synchronisieren</h1>
