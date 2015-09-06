@@ -3,7 +3,7 @@
 Plugin Name: BLN.FM Cal Sync
 Description: 
 Author: Nico Knoll
-Version: 1.6
+Version: 1.8
 Author URI: http://nico.is
 */
 
@@ -103,7 +103,7 @@ function updateEvent($data) {
 	$em_event = em_get_event(getPostIdByMetaValue('_ss_id', $data['id']), 'post_id');
 	$check = true;
 
-	if($data['status'] == 'ACTIVE') {
+	if($data['status'] != 'DELETED') {
 		if(!($em_event->event_id)) $em_event = new EM_Event();
 
 		$em_event->event_start_date = $data["starttag"];
@@ -124,6 +124,7 @@ function updateEvent($data) {
 		$em_event->post_tags = @$data["tags"];
 
 		// meta
+		$em_event->event_attributes = array('status' => $data['status']);
 		$em_event->group_id = 0;
 		$em_event->event_date_modified = date('Y-m-d H:i:s', time());
 		$em_event->event_all_day = 0;
