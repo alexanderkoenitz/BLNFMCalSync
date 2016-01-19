@@ -3,12 +3,18 @@
 Plugin Name: BLN.FM Cal Sync
 Description: 
 Author: Nico Knoll
-Version: 1.8
+Version: 2.0
 Author URI: http://nico.is
 */
 
 define('BLNFM_GOOGLE_SPREADSHEET_ID', '1ALu_lizA9GFiW_86lN6FGqVIoOY6buWEBB_QU2PfdYA');
 
+function getSpreadsheets() {
+	return array(
+		'1o1tSB-z8BWgmz1xifLCOzIGRv12S9cNuaR2D7WJS9Wg',
+		'13pRV-83bORr2lTjyvJo_byN093I00ysfx3l6RbdUWJI'
+	);
+}
 
 function file_get_contents_curl($url) {
 	$ch = curl_init();
@@ -24,8 +30,7 @@ function file_get_contents_curl($url) {
 }
 
 
-function spreadsheetToArray() {
-	$id = BLNFM_GOOGLE_SPREADSHEET_ID;
+function spreadsheetToArray($id) {
 	$url = 'https://spreadsheets.google.com/feeds/list/'.$id.'/od6/public/full?alt=json';
 
 	$data = json_decode(file_get_contents_curl($url), true);
@@ -42,10 +47,12 @@ function spreadsheetToArray() {
 
 				if($key == 'starttag' || $key == 'endtag') {
 					$tmp = explode('.', $value["\$t"]);
-					$return_event[$key] = date('Y-m-d', mktime(0,0,0,$tmp[1],$tmp[0],$tmp[2]));
+					if($value["\$t"] == '') echo 'Start- und/oder Enddatum bei Termin fehlt.<br>'; 
+					$return_event[$key] = @date('Y-m-d', mktime(0,0,0,(int)$tmp[1],(int)$tmp[0],(int)$tmp[2]));
 				} elseif($key == 'startzeit' || $key == 'endzeit') {
 					$tmp = explode(':', $value["\$t"]);
-					$return_event[$key] = date('H:i:s', mktime($tmp[0],$tmp[1],0,0,0,0));
+					if($value["\$t"] == '') echo 'Start- und/oder Endzeit bei Termin fehlt.<br>'; 
+					$return_event[$key] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
 				} else {
 					$return_event[$key] = $value["\$t"];
 				}
@@ -133,6 +140,26 @@ function updateEvent($data) {
 		$check = $em_event->save();
 
 		add_post_meta($em_event->post_id, '_ss_id', $data['id']);
+
+		// add category
+		$type = new EM_Category(strtolower($data["veranstaltungstyp"]));
+		if(!$type->term_id) $type = new EM_Category("sonstiges");
+
+		$categories[] = $type->term_id;
+		if($data["recommended"]) 	$categories[] = get_cat_ID('tipp');
+		if($data["promoted"]) 		$categories[] = get_cat_ID('sponsored');
+		if($data["team"]) 			$categories[] = get_cat_ID('team');
+
+		wp_set_post_terms($em_event->post_id, $categories, 'event-categories', false);
+
+		// add tags
+		$tags = array();
+		if($data["tags"]) 			$tags[] = $data["tags"];
+		if($data["ausverkauft"]) 	$tags[] = "ausverkauft";
+		if($data["openair"]) 		$tags[] = 'open air';
+
+		if(count($data["tags"])) wp_set_post_terms($em_event->post_id, $tags, 'event-tags', false);
+
 	} else {
 		if($em_event->event_id) $check = $em_event->delete(true);
 	}
@@ -141,9 +168,9 @@ function updateEvent($data) {
 }
 
 function updateEvents() {
-	$spreadsheet = spreadsheetToArray();
-	if($spreadsheet) {
-		foreach(spreadsheetToArray() as $event) {
+	foreach(getSpreadsheets() as $spreadsheet) {
+		$events = spreadsheetToArray($spreadsheet);
+		foreach($events as $event) {
 			// reload locations as we dynamically create them if missing
 			$locations = getLocationIDs();
 
@@ -153,6 +180,7 @@ function updateEvents() {
 			updateEvent($event);
 		}
 	}
+	
 }
 
 
@@ -171,7 +199,13 @@ function blnfmcalsync_page_function() {
 
 	echo '<div class="wrap">
 	<h1>Mit Google Spreadsheet synchronisieren</h1>
-	<p>Spreadsheet URL: '.BLNFM_GOOGLE_SPREADSHEET_ID.'</p>
+	<p>Spreadsheet URLs: </p>
+	<ul>
+	';
+
+	foreach(getSpreadsheets() as $spreadsheet) echo '<li>'.$spreadsheet.'</li>';
+
+	echo '
 	<p>Letztes mal synchronisiert: '.date('d.m.Y H:i', $lastSynced).' Uhr</p>
 	<p>Button klicken um die Synchronisation zu starten.</p>
 	<form action="'.$_SERVER['REQUEST_URI'].'" method="post">
