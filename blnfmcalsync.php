@@ -9,6 +9,8 @@ Author URI: http://nico.is
 
 define('BLNFM_GOOGLE_SPREADSHEET_ID', '1ALu_lizA9GFiW_86lN6FGqVIoOY6buWEBB_QU2PfdYA');
 
+$blnfmSyncWarnings = array();
+
 function getSpreadsheets() {
 	return array(
 		'1o1tSB-z8BWgmz1xifLCOzIGRv12S9cNuaR2D7WJS9Wg',
@@ -47,21 +49,47 @@ function spreadsheetToArray($id) {
 
 				if($key == 'starttag' || $key == 'endtag') {
 					$tmp = explode('.', $value["\$t"]);
-					if($value["\$t"] == '') echo 'Start- und/oder Enddatum bei Termin fehlt.<br>'; 
-					$return_event[$key] = @date('Y-m-d', mktime(0,0,0,(int)$tmp[1],(int)$tmp[0],(int)$tmp[2]));
+					if($value["\$t"] != '') $return_event[$key] = @date('Y-m-d', mktime(0,0,0,(int)$tmp[1],(int)$tmp[0],(int)$tmp[2]));
+					else $return_event[$key] = $value["\$t"];
 				} elseif($key == 'startzeit' || $key == 'endzeit') {
 					$tmp = explode(':', $value["\$t"]);
-					if($value["\$t"] == '') echo 'Start- und/oder Endzeit bei Termin fehlt.<br>'; 
-					$return_event[$key] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
+					if($value["\$t"] != '') $return_event[$key] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
+					else $return_event[$key] = $value["\$t"];
 				} else {
 					$return_event[$key] = $value["\$t"];
 				}
 			}
 		}
-		$return[] = $return_event;
+		$return[] = processData($return_event);
 	}
 
 	return $return;
+}
+
+function processData($eventData) {
+	global $blnfmSyncWarnings;
+
+	$id = '<b>'.$eventData['id'].'</b>';
+
+	// check start and enddate
+	if($eventData['endtag'] == '') {
+		$blnfmSyncWarnings[] = $id.': Endtag fehlt und wird auf "0" gesetzt.';
+		$eventData['endtag'] = 0;
+	}
+
+	if($eventData['starttag'] == '') {
+		$blnfmSyncWarnings[] = $id.': Starttag fehlt. Es wird jetzt angenommen, dass Starttag = Endtag ist.';
+		$eventData['starttag'] = $eventData['endtag'];
+	}
+
+	if($eventData['startzeit'] == '') {
+		$blnfmSyncWarnings[] = $id.': Startzeit fehlt und wird auf 23h gesetzt.';
+		$eventData['startzeit'] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
+	}
+
+	
+
+	return $eventData;
 }
 
 function addLocation($name) {
@@ -150,7 +178,7 @@ function updateEvent($data) {
 		if($data["promoted"]) 		$categories[] = get_cat_ID('sponsored');
 		if($data["team"]) 			$categories[] = get_cat_ID('team');
 
-		wp_set_post_terms($em_event->post_id, $categories, 'event-categories', false);
+		if(count($categories)) wp_set_post_terms($em_event->post_id, $categories, 'event-categories', false);
 
 		// add tags
 		$tags = array();
@@ -158,7 +186,7 @@ function updateEvent($data) {
 		if($data["ausverkauft"]) 	$tags[] = "ausverkauft";
 		if($data["openair"]) 		$tags[] = 'open air';
 
-		if(count($data["tags"])) wp_set_post_terms($em_event->post_id, $tags, 'event-tags', false);
+		if(count($tags)) wp_set_post_terms($em_event->post_id, $tags, 'event-tags', false);
 
 	} else {
 		if($em_event->event_id) $check = $em_event->delete(true);
@@ -193,6 +221,12 @@ function blnfmcalsync_page_function() {
 		update_option( 'blnfmcalsync-lastsync', time() );
 
 		updateEvents();
+	}
+
+	foreach($blnfmSyncWarnings as $blnfmSyncWarning) {
+		echo '<div id="message" class="warning">
+		<p>'.$blnfmSyncWarning.'</p>
+		</div>';
 	}
 
 	$lastSynced = get_option( 'blnfmcalsync-lastsync' );
