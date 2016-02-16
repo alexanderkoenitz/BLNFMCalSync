@@ -54,7 +54,6 @@ function spreadsheetToArray($id) {
 	$url = 'https://spreadsheets.google.com/feeds/list/'.$id.'/od6/public/full?alt=json';
 
 	$data = json_decode(file_get_contents_curl($url), true);
-	var_dump($data);
 	$return = array();
 
 	if(!count($data['feed']['entry'])) return false;
