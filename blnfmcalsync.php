@@ -214,6 +214,8 @@ function updateEvents() {
 
 
 function blnfmcalsync_page_function() {
+	global $blnfmSyncWarnings;
+
 	if(@$_POST['syncnow']) {
 		echo '<div id="message" class="updated">
 		<p>Veranstaltungen sollten jetzt synchronisiert sein.</p>
