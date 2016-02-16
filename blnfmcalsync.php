@@ -84,7 +84,7 @@ function processData($eventData) {
 
 	if($eventData['startzeit'] == '') {
 		$blnfmSyncWarnings[] = $id.': Startzeit fehlt und wird auf 23h gesetzt.';
-		$eventData['startzeit'] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
+		$eventData['startzeit'] = @date('H:i:s', mktime(23,0,0,0,0,0));
 	}
 
 	
