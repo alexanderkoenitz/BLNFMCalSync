@@ -105,8 +105,6 @@ function processData($eventData) {
 		$eventData['startzeit'] = @date('H:i:s', mktime(23,0,0,0,0,0));
 	}
 
-
-
 	return $eventData;
 }
 
