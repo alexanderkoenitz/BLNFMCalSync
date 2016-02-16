@@ -173,18 +173,19 @@ function updateEvent($data) {
 		$type = new EM_Category(strtolower($data["veranstaltungstyp"]));
 		if(!$type->term_id) $type = new EM_Category("sonstiges");
 
-		$categories[] = $type->term_id;
-		if($data["recommended"]) 	$categories[] = get_cat_ID('tipp');
-		if($data["promoted"]) 		$categories[] = get_cat_ID('sponsored');
-		if($data["team"]) 			$categories[] = get_cat_ID('team');
+		$categories = array();
+		array_push($categories, $type->term_id);
+		if($data["recommended"]) 	array_push($categories, get_cat_ID('tipp'));
+		if($data["promoted"]) 		array_push($categories, get_cat_ID('sponsored'));
+		if($data["team"]) 			array_push($categories, get_cat_ID('team'));
 
 		if(count($categories)) wp_set_post_terms($em_event->post_id, $categories, 'event-categories', false);
 
 		// add tags
 		$tags = array();
-		if($data["tags"]) 			$tags[] = $data["tags"];
-		if($data["ausverkauft"]) 	$tags[] = "ausverkauft";
-		if($data["openair"]) 		$tags[] = 'open air';
+		if($data["tags"]) 			array_push($tags, $data["tags"]);
+		if($data["ausverkauft"]) 	array_push($tags, "ausverkauft");
+		if($data["openair"]) 		array_push($tags, "open air");
 
 		if(count($tags)) wp_set_post_terms($em_event->post_id, $tags, 'event-tags', false);
 
