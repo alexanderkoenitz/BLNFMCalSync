@@ -19,16 +19,34 @@ function getSpreadsheets() {
 }
 
 function file_get_contents_curl($url) {
-	$ch = curl_init();
 
-	curl_setopt($ch, CURLOPT_HEADER, 0);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); //Set curl to return the data instead of printing it to the browser.
-	curl_setopt($ch, CURLOPT_URL, $url);
+	try {
+		$ch = curl_init();
 
-	$data = curl_exec($ch);
-	curl_close($ch);
+		if (FALSE === $ch)
+			throw new Exception('failed to initialize');
 
-	return $data;
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); //Set curl to return the data instead of printing it to the browser.
+		curl_setopt($ch, CURLOPT_URL, $url);
+
+		$data = curl_exec($ch);
+
+		if (FALSE === $data)
+			throw new Exception(curl_error($ch), curl_errno($ch));
+
+		curl_close($ch);
+
+		return $data;
+
+	} catch(Exception $e) {
+
+		trigger_error(sprintf(
+			'Curl failed with error #%d: %s',
+			$e->getCode(), $e->getMessage()),
+			E_USER_ERROR);
+
+	}
 }
 
 
@@ -84,10 +102,10 @@ function processData($eventData) {
 
 	if($eventData['startzeit'] == '') {
 		$blnfmSyncWarnings[] = $id.': Startzeit fehlt und wird auf 23h gesetzt.';
-		$eventData['startzeit'] = @date('H:i:s', mktime((int)$tmp[0],(int)$tmp[1],0,0,0,0));
+		$eventData['startzeit'] = @date('H:i:s', mktime(23,0,0,0,0,0));
 	}
 
-	
+
 
 	return $eventData;
 }
@@ -112,7 +130,7 @@ function getLocationIDs() {
 	$return = array();
 
 	foreach($EM_Locations as $EM_Location){
-	  	@$return[$EM_Location->name] = @$EM_Location->id; 
+	  	@$return[$EM_Location->name] = @$EM_Location->id;
 	}
 
 	return $return;
@@ -121,11 +139,11 @@ function getLocationIDs() {
 function getPostIdByMetaValue($key, $value) {
 	global $wpdb;
 	$meta = $wpdb->get_results("SELECT * FROM `".$wpdb->postmeta."` WHERE meta_key='".esc_sql($key)."' AND meta_value='".esc_sql($value)."'");
-	
+
 	if (is_array($meta) && !empty($meta) && isset($meta[0])) {
 		$meta = $meta[0];
-		}	
-	
+		}
+
 	if (is_object($meta)) {
 		return $meta->post_id;
 	} else {
@@ -209,11 +227,13 @@ function updateEvents() {
 			updateEvent($event);
 		}
 	}
-	
+
 }
 
 
 function blnfmcalsync_page_function() {
+	global $blnfmSyncWarnings;
+
 	if(@$_POST['syncnow']) {
 		echo '<div id="message" class="updated">
 		<p>Veranstaltungen sollten jetzt synchronisiert sein.</p>
