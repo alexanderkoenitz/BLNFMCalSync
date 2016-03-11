@@ -172,6 +172,7 @@ function updateEvent($data) {
 
 		$em_event->body = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
 		$em_event->post_content = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
+		$em_event->post_excerpt = (($data["kurzbeschreibung"]) ? $data["kurzbeschreibung"] : '');
 		$em_event->post_tags = @$data["tags"];
 
 		// meta
